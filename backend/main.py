@@ -1,25 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from openai import OpenAI
-from dotenv import load_dotenv
-from fastapi import UploadFile, File
-import fitz
+import requests
+import json
 import os
+from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# OpenRouter client
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-)
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# FastAPI app
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,93 +20,145 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request model
+
+
+
 class InterviewRequest(BaseModel):
+    answer: str
     role: str
+
+
+class FeedbackRequest(BaseModel):
     messages: list
 
-# API endpoint
-# Resume Upload Route
-@app.post("/upload-resume")
-async def upload_resume(file: UploadFile = File(...)):
 
-    try:
-
-        contents = await file.read()
-
-        pdf = fitz.open(stream=contents, filetype="pdf")
-
-        extracted_text = ""
-
-        for page in pdf:
-            extracted_text += page.get_text()
-
-        return {
-            "resume_text": extracted_text
-        }
-
-    except Exception as e:
-
-        print("ERROR:", e)
-
-        return {
-            "resume_text": ""
-        }
+@app.get("/")
+def home():
+    return {"message": "Backend running"}
 
 
-# AI Interview Route
 @app.post("/generate-question")
-async def generate_question(data: InterviewRequest):
-
-    conversation = ""
-
-    for msg in data.messages:
-
-        msg_type = msg.get("type", "")
-        msg_text = msg.get("text", "")
-
-        conversation += f"{msg_type}: {msg_text}\n"
+def generate_question(data: InterviewRequest):
 
     prompt = f"""
-    You are a professional interviewer hiring for a {data.role} role.
+    You are an AI interviewer for a {data.role} role.
 
-    Conversation history:
-    {conversation}
+    Candidate answer:
+    {data.answer}
 
-    Rules:
-    - Ask only ONE interview question
-    - Ask intelligent follow-up questions
-    - Refer to previous answers
-    - Avoid repeating questions
+    Ask the next interview question only.
     """
 
-    try:
-
-        completion = client.chat.completions.create(
-            model="openai/gpt-3.5-turbo",
-
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert interviewer."
-                },
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "openai/gpt-3.5-turbo",
+            "messages": [
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": prompt,
                 }
-            ]
-        )
+            ],
+        },
+    )
 
-        generated_question = completion.choices[0].message.content
+    result = response.json()
+
+    print("OPENROUTER RESPONSE:")
+    print(result)
+
+    # ERROR HANDLING
+    if "choices" not in result:
 
         return {
-            "question": generated_question
+            "question": f"API Error: {result}"
         }
 
-    except Exception as e:
+    question = result["choices"][0]["message"]["content"]
 
-        print("ERROR:", e)
+    return {
+        "question": question
+    }
+
+
+@app.post("/generate-feedback")
+def generate_feedback(data: FeedbackRequest):
+
+    prompt = f"""
+    You are an expert technical interviewer.
+
+    Analyze this interview conversation deeply.
+
+    Interview Conversation:
+    {data.messages}
+
+    Evaluate:
+    - technical knowledge
+    - communication
+    - confidence
+    - problem solving
+    - project understanding
+
+    Generate a COMPLETE interview report in STRICT JSON format.
+
+    Return ONLY valid JSON.
+
+    Format:
+
+    {{
+      "overall_score": number,
+      "technical_score": number,
+      "communication_score": number,
+      "problem_solving_score": number,
+      "strengths": ["strength1", "strength2"],
+      "improvements": ["improvement1", "improvement2"],
+      "final_feedback": "detailed final evaluation"
+    }}
+    """
+
+    response = requests.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": "openai/gpt-3.5-turbo",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        },
+    )
+
+    result = response.json()
+
+    print(result)
+
+    if "choices" not in result:
 
         return {
-            "question": "Error generating question."
+            "overall_score": 0,
+            "technical_score": 0,
+            "communication_score": 0,
+            "problem_solving_score": 0,
+            "strengths": ["API Error"],
+            "improvements": ["Check API key"],
+            "final_feedback": str(result)
         }
+
+    content = result["choices"][0]["message"]["content"]
+
+    # Remove markdown formatting if AI adds it
+    content = content.replace("```json", "")
+    content = content.replace("```", "")
+
+    feedback = json.loads(content)
+
+    return feedback

@@ -1,32 +1,34 @@
-import { useState, useRef, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 function Interview() {
 
-  const [answer, setAnswer] = useState("")
+  const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(false)
+  const [answer, setAnswer] = useState("");
 
-  const messagesEndRef = useRef(null)
+  const [loading, setLoading] = useState(false);
+
+  const messagesEndRef = useRef(null);
 
   const [messages, setMessages] = useState([
     {
       type: "question",
       text: "Tell me about yourself."
     }
-  ])
+  ]);
 
-  // Auto scroll to latest message
+  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth"
-    })
-  }, [messages, loading])
+    });
+  }, [messages, loading]);
 
-  // Generate AI question
+  // Generate next AI question
   const generateQuestion = async () => {
 
-    if (answer.trim() === "") return
+    if (answer.trim() === "") return;
 
     const updatedMessages = [
       ...messages,
@@ -34,13 +36,15 @@ function Interview() {
         type: "answer",
         text: answer
       }
-    ]
+    ];
 
-    setMessages(updatedMessages)
+    setMessages(updatedMessages);
 
-    setAnswer("")
+    const currentAnswer = answer;
 
-    setLoading(true)
+    setAnswer("");
+
+    setLoading(true);
 
     try {
 
@@ -54,13 +58,13 @@ function Interview() {
           },
 
           body: JSON.stringify({
-            role: "Frontend Developer",
-            messages: updatedMessages
+            answer: currentAnswer,
+            role: "Frontend Developer"
           })
         }
-      )
+      );
 
-      const data = await response.json()
+      const data = await response.json();
 
       setMessages([
         ...updatedMessages,
@@ -68,27 +72,76 @@ function Interview() {
           type: "question",
           text: data.question
         }
-      ])
+      ]);
 
     } catch (error) {
 
-      console.log(error)
+      console.log(error);
+
+      setMessages([
+        ...updatedMessages,
+        {
+          type: "question",
+          text: "Error generating question."
+        }
+      ]);
+    }
+
+    setLoading(false);
+  };
+
+  // Generate AI feedback report
+  const generateFeedback = async () => {
+
+    try {
+
+      setLoading(true);
+
+      const response = await fetch(
+        "http://127.0.0.1:8000/generate-feedback",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          body: JSON.stringify({
+            messages: messages
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(data);
+
+      localStorage.setItem(
+        "interviewFeedback",
+        JSON.stringify(data)
+      );
+
+      navigate("/results");
+
+    } catch (error) {
+
+      console.log(error);
 
     }
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
-  // Enter to send
+  // Enter key
   const handleKeyDown = (e) => {
 
     if (e.key === "Enter" && !e.shiftKey) {
 
-      e.preventDefault()
+      e.preventDefault();
 
-      generateQuestion()
+      generateQuestion();
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white flex overflow-hidden">
@@ -134,19 +187,21 @@ function Interview() {
           {/* Interview Status */}
           <div className="mt-12 space-y-4">
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition duration-300">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               <p className="text-gray-400 text-sm mb-1">
                 Role
               </p>
+
               <h2 className="font-semibold text-lg">
                 Frontend Developer
               </h2>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition duration-300">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
               <p className="text-gray-400 text-sm mb-1">
                 Questions Asked
               </p>
+
               <h2 className="font-semibold text-lg">
                 {messages.filter(msg => msg.type === "question").length}
               </h2>
@@ -162,7 +217,7 @@ function Interview() {
 
       </div>
 
-      {/* Chat Area */}
+      {/* Chat Section */}
       <div className="flex-1 flex flex-col z-10">
 
         {/* Header */}
@@ -179,10 +234,13 @@ function Interview() {
           </div>
 
           <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full">
+
             <div className="w-2 h-2 rounded-full bg-green-400 animate-ping"></div>
+
             <span className="text-green-300 text-sm font-medium">
               AI Active
             </span>
+
           </div>
 
         </div>
@@ -198,11 +256,11 @@ function Interview() {
                 msg.type === "answer"
                   ? "justify-end"
                   : "justify-start"
-              } animate-fadeIn`}
+              }`}
             >
 
               <div
-                className={`max-w-2xl px-6 py-5 rounded-3xl shadow-2xl transition duration-300 hover:scale-[1.01] ${
+                className={`max-w-2xl px-6 py-5 rounded-3xl shadow-2xl ${
                   msg.type === "question"
                     ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white rounded-bl-md"
                     : "bg-white/10 backdrop-blur-xl border border-white/10 text-white rounded-br-md"
@@ -212,8 +270,7 @@ function Interview() {
                 <p className="text-sm opacity-70 mb-2">
                   {msg.type === "question"
                     ? "AI Interviewer"
-                    : "You"
-                  }
+                    : "You"}
                 </p>
 
                 <p className="leading-relaxed text-[15px] whitespace-pre-wrap">
@@ -226,9 +283,10 @@ function Interview() {
 
           ))}
 
-          {/* Loading Animation */}
+          {/* Loading */}
           {loading && (
-            <div className="flex justify-start animate-fadeIn">
+
+            <div className="flex justify-start">
 
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 px-6 py-5 rounded-3xl rounded-bl-md shadow-2xl">
 
@@ -237,9 +295,13 @@ function Interview() {
                 </p>
 
                 <div className="flex gap-2">
+
                   <div className="w-3 h-3 rounded-full bg-white animate-bounce"></div>
+
                   <div className="w-3 h-3 rounded-full bg-white animate-bounce delay-100"></div>
+
                   <div className="w-3 h-3 rounded-full bg-white animate-bounce delay-200"></div>
+
                 </div>
 
               </div>
@@ -251,7 +313,7 @@ function Interview() {
 
         </div>
 
-        {/* Input Area */}
+        {/* Input */}
         <div className="border-t border-white/10 backdrop-blur-xl bg-white/5 p-6">
 
           <div className="flex gap-4 items-end">
@@ -260,17 +322,25 @@ function Interview() {
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your answer... (Enter to send, Shift+Enter for new line)"
-              className="flex-1 bg-white/10 border border-white/10 rounded-3xl px-6 py-5 outline-none resize-none text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition duration-300 backdrop-blur-xl"
+              placeholder="Type your answer..."
+              className="flex-1 bg-white/10 border border-white/10 rounded-3xl px-6 py-5 outline-none resize-none text-white placeholder-gray-400"
               rows="3"
             />
 
             <button
               onClick={generateQuestion}
               disabled={loading}
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:scale-105 active:scale-95 transition duration-300 px-8 py-5 rounded-3xl font-semibold shadow-2xl shadow-blue-500/30 disabled:opacity-50"
+              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:scale-105 transition duration-300 px-8 py-5 rounded-3xl font-semibold shadow-2xl"
             >
               {loading ? "Thinking..." : "Send"}
+            </button>
+
+            <button
+              onClick={generateFeedback}
+              disabled={loading}
+              className="bg-green-500 hover:bg-green-600 transition duration-300 px-8 py-5 rounded-3xl font-semibold shadow-2xl"
+            >
+              Finish Interview
             </button>
 
           </div>
@@ -280,7 +350,7 @@ function Interview() {
       </div>
 
     </div>
-  )
+  );
 }
 
-export default Interview
+export default Interview;
