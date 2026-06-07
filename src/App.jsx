@@ -4,7 +4,7 @@ import Home from "./pages/Home"
 import Setup from "./pages/Setup"
 import Interview from "./pages/Interview"
 import Results from "./pages/Results"
-
+import History from "./pages/History";
 function App() {
   return (
     <BrowserRouter>
@@ -18,6 +18,7 @@ function App() {
         <Route path="/interview" element={<Interview />} />
 
         <Route path="/results" element={<Results />} />
+        <Route path="/history" element={<History />} />
 
       </Routes>
 

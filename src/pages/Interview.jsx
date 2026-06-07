@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-function Interview() {
+import VoiceInterview from "./VoiceInterview";
 
+function Interview() {
+  const [voiceMode, setVoiceMode] = useState(false);
+
+  const [voiceAnalytics, setVoiceAnalytics] = useState(null);
   const navigate = useNavigate();
 
   const [answer, setAnswer] = useState("");
@@ -25,6 +29,14 @@ function Interview() {
     });
   }, [messages, loading]);
 
+  const handleVoiceComplete = (result) => {
+
+  console.log("VOICE RESULT:", result);
+
+  setAnswer(result.transcript);
+
+  setVoiceAnalytics(result.analytics);
+};
   // Generate next AI question
   const generateQuestion = async () => {
 
@@ -58,8 +70,8 @@ function Interview() {
           },
 
           body: JSON.stringify({
-            answer: currentAnswer,
-            role: "Frontend Developer"
+  answer: currentAnswer,
+          role: localStorage.getItem("selectedRole")
           })
         }
       );
@@ -91,47 +103,72 @@ function Interview() {
   };
 
   // Generate AI feedback report
-  const generateFeedback = async () => {
+// Generate AI feedback report
+const generateFeedback = async () => {
 
-    try {
+  try {
 
-      setLoading(true);
+    setLoading(true);
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/generate-feedback",
-        {
-          method: "POST",
+    const response = await fetch(
+      "http://127.0.0.1:8000/generate-feedback",
+      {
+        method: "POST",
 
-          headers: {
-            "Content-Type": "application/json"
-          },
+        headers: {
+          "Content-Type": "application/json"
+        },
 
-          body: JSON.stringify({
-            messages: messages
-          })
-        }
-      );
+        body: JSON.stringify({
+          messages: messages
+        })
+      }
+    );
 
-      const data = await response.json();
+    const data = await response.json();
 
-      console.log(data);
+    console.log(data);
+    data.voiceanalytics = voiceAnalytics;
 
-      localStorage.setItem(
-        "interviewFeedback",
-        JSON.stringify(data)
-      );
+    // SAVE CURRENT FEEDBACK
+    localStorage.setItem(
+      "interviewFeedback",
+      JSON.stringify(data)
+    );
 
-      navigate("/results");
+    // =========================
+    // SAVE INTERVIEW HISTORY
+    // =========================
+    const existingHistory =
+      JSON.parse(
+        localStorage.getItem("interviewHistory")
+      ) || [];
 
-    } catch (error) {
+    const newInterview = {
+      date: new Date().toLocaleString(),
+      role: localStorage.getItem("selectedRole"),
+      score: data.overall_score,
+      feedback: data,
+    };
 
-      console.log(error);
+    existingHistory.unshift(newInterview);
 
-    }
+    localStorage.setItem(
+      "interviewHistory",
+      JSON.stringify(existingHistory)
+    );
 
-    setLoading(false);
-  };
+    // GO TO RESULTS PAGE
+    navigate("/results");
 
+  } catch (error) {
+
+    console.log(error);
+
+  }
+
+  setLoading(false);
+};
   // Enter key
   const handleKeyDown = (e) => {
 
@@ -193,7 +230,7 @@ function Interview() {
               </p>
 
               <h2 className="font-semibold text-lg">
-                Frontend Developer
+                {localStorage.getItem("selectedRole")}
               </h2>
             </div>
 
@@ -233,18 +270,27 @@ function Interview() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full">
+          <div className="flex items-center gap-3">
 
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-ping"></div>
+            <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full">
 
-            <span className="text-green-300 text-sm font-medium">
-              AI Active
-            </span>
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-ping"></div>
+
+              <span className="text-green-300 text-sm font-medium">
+                AI Active
+              </span>
+
+            </div>
+
+            <button
+              onClick={() => setVoiceMode(!voiceMode)}
+              className="bg-purple-500 hover:bg-purple-600 transition px-4 py-2 rounded-xl text-sm font-semibold"
+            >
+              {voiceMode ? "Text Mode" : "🎤 Voice Mode"}
+            </button>
 
           </div>
-
         </div>
-
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-8 py-8 space-y-6">
 
@@ -310,13 +356,28 @@ function Interview() {
           )}
 
           <div ref={messagesEndRef}></div>
+          
+
 
         </div>
 
         {/* Input */}
-        <div className="border-t border-white/10 backdrop-blur-xl bg-white/5 p-6">
+<div className="border-t border-white/10 backdrop-blur-xl bg-white/5 p-6">
 
-          <div className="flex gap-4 items-end">
+  {voiceMode && (
+    <div className="mb-4">
+      <VoiceInterview
+        question={
+          messages[messages.length - 1]?.type === "question"
+            ? messages[messages.length - 1].text
+            : ""
+        }
+        onComplete={handleVoiceComplete}
+      />
+    </div>
+  )}
+
+  <div className="flex gap-4 items-end">
 
             <textarea
               value={answer}
@@ -352,5 +413,4 @@ function Interview() {
     </div>
   );
 }
-
 export default Interview;

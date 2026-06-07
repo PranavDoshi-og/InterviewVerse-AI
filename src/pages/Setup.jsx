@@ -1,120 +1,129 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Setup() {
 
-  const [role, setRole] = useState("")
-  const [type, setType] = useState("")
-  const [resume, setResume] = useState(null)
+  const navigate = useNavigate();
+
+  const [role, setRole] = useState("Frontend Developer");
+
+  const [resume, setResume] = useState(null);
+
+  const [uploading, setUploading] = useState(false);
+
+  const handleResumeUpload = async () => {
+
+    if (!resume) {
+      alert("Please upload resume");
+      return;
+    }
+
+    const formData = new FormData();
+
+    formData.append("file", resume);
+
+    try {
+
+      setUploading(true);
+
+      const response = await fetch(
+        "http://127.0.0.1:8000/upload-resume",
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      console.log(data);
+
+      localStorage.setItem("selectedRole", role);
+
+      navigate("/interview");
+
+    } catch (error) {
+
+      console.log(error);
+
+      alert("Resume upload failed");
+
+    }
+
+    setUploading(false);
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white px-6 py-10 relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
 
-      {/* Glow */}
-      <div className="absolute top-[-200px] left-1/2 -translate-x-1/2 w-[700px] h-[700px] bg-blue-500 opacity-20 blur-[150px] rounded-full"></div>
-
-      {/* Header */}
-      <div className="relative z-10 max-w-3xl mx-auto">
-
-        <Link to="/">
-          <button className="mb-8 text-gray-400 hover:text-white transition">
-            ← Back
-          </button>
-        </Link>
+      <div className="w-full max-w-2xl bg-white/5 border border-white/10 backdrop-blur-xl rounded-3xl p-10">
 
         <h1 className="text-5xl font-bold mb-4">
-          Setup Your Interview
+          Interview Setup
         </h1>
 
-        <p className="text-gray-400 text-lg mb-12">
-          Customize your AI interview experience and upload your resume.
+        <p className="text-gray-400 mb-10">
+          Upload your resume and start AI-powered personalized interviews.
         </p>
 
-        {/* Form */}
-        <div className="space-y-8">
+        {/* Role Selection */}
+        <div className="mb-8">
 
-          {/* Role */}
-          <div>
-            <label className="block text-lg font-semibold mb-3">
-              Select Role
-            </label>
+          <label className="block mb-3 text-lg font-medium">
+            Select Role
+          </label>
 
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-5 py-4 text-white outline-none focus:border-blue-500"
-            >
-              <option value="">Choose a role</option>
-              <option>Frontend Developer</option>
-              <option>Backend Developer</option>
-              <option>Full Stack Developer</option>
-              <option>Data Analyst</option>
-              <option>UI/UX Designer</option>
-            </select>
-          </div>
-
-          {/* Interview Type */}
-          <div>
-            <label className="block text-lg font-semibold mb-3">
-              Interview Style
-            </label>
-
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="w-full bg-gray-950 border border-gray-800 rounded-2xl px-5 py-4 text-white outline-none focus:border-blue-500"
-            >
-              <option value="">Choose interview style</option>
-              <option>Strict HR</option>
-              <option>Friendly Recruiter</option>
-              <option>Technical Interviewer</option>
-              <option>Startup Founder</option>
-            </select>
-          </div>
-
-          {/* Resume Upload */}
-          <div>
-            <label className="block text-lg font-semibold mb-3">
-              Upload Resume
-            </label>
-
-            <div className="border-2 border-dashed border-gray-700 rounded-3xl p-10 text-center bg-gray-950">
-
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={(e) => setResume(e.target.files[0])}
-                className="mb-4"
-              />
-
-              {resume ? (
-                <p className="text-green-400">
-                  Uploaded: {resume.name}
-                </p>
-              ) : (
-                <p className="text-gray-400">
-                  Upload your resume for personalized questions
-                </p>
-              )}
-
-            </div>
-          </div>
-
-          {/* Start Button */}
-          <Link to="/interview">
-
-            <button className="w-full bg-blue-500 hover:bg-blue-600 py-5 rounded-2xl text-xl font-semibold transition duration-300 hover:scale-[1.02] shadow-lg shadow-blue-500/30">
-              Start AI Interview
-            </button>
-
-          </Link>
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-4 outline-none"
+          >
+            <option>Frontend Developer</option>
+            <option>Backend Developer</option>
+            <option>Full Stack Developer</option>
+            <option>AI/ML Engineer</option>
+            <option>DevOps Engineer</option>
+          </select>
 
         </div>
+
+        {/* Resume Upload */}
+        <div className="mb-10">
+
+          <label className="block mb-3 text-lg font-medium">
+            Upload Resume (PDF)
+          </label>
+
+          <input
+            type="file"
+            accept=".pdf"
+            onChange={(e) => setResume(e.target.files[0])}
+            className="w-full bg-white/10 border border-white/10 rounded-2xl px-5 py-4"
+          />
+
+          {resume && (
+            <p className="text-green-400 mt-3">
+              Selected: {resume.name}
+            </p>
+          )}
+
+        </div>
+
+        {/* Start Button */}
+        <button
+          onClick={handleResumeUpload}
+          disabled={uploading}
+          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:scale-[1.02] transition duration-300 py-5 rounded-2xl font-semibold text-lg shadow-2xl"
+        >
+          {uploading
+            ? "Uploading Resume..."
+            : "Start AI Interview"}
+        </button>
 
       </div>
 
     </div>
-  )
+  );
 }
 
-export default Setup
+export default Setup;
