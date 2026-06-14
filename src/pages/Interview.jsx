@@ -128,7 +128,8 @@ const generateFeedback = async () => {
     const data = await response.json();
 
     console.log(data);
-    data.voiceanalytics = voiceAnalytics;
+    // FIX: standardised to camelCase "voiceAnalytics" — matches Results.jsx
+    data.voiceAnalytics = voiceAnalytics;
 
     // SAVE CURRENT FEEDBACK
     localStorage.setItem(
