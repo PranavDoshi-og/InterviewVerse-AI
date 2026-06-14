@@ -11,8 +11,8 @@ function Home() {
       {/* Navbar */}
       <nav className="flex items-center justify-between px-8 py-6 border-b border-gray-800 relative z-10">
 
-        <h1 className="text-2xl font-bold tracking-wide">
-          FinalRound AI
+        <h1 className="text-2xl italic font-bold tracking-wide">
+          INTERVIEWVERSE AI
         </h1>
 
         <Link to="/setup">
